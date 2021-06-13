@@ -1,17 +1,36 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
+const functions = require('firebase-functions');
+const algoliasearch = require('algoliasearch');
 
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById('root')
-);
+const APP_ID = functions.config().algolia.app;
+const ADMIN_KEY = functions.config().algolia.key;
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+const client = algoliasearch(APP_ID, ADMIN_KEY);
+const index = client.initIndex('algo-index');
+
+/// Cloud Functions
+
+exports.addToIndex = functions.firestore.document('algo-index/{userId}')
+
+    .onCreate(snapshot => {
+
+        const data = snapshot.data();
+        const objectID = snapshot.id;
+
+        return index.addObject({ ...data, objectID });
+
+    });
+
+
+exports.updateIndex = functions.firestore.document('algo-index/{userId}')
+
+    .onUpdate((change) => {
+        const newData = change.after.data();
+        const objectID = change.after.id;
+        return index.saveObject({ ...newData, objectID });
+    });
+
+exports.deleteFromIndex = functions.firestore.document('algo-index/{userId}')
+
+    .onDelete(snapshot => 
+        index.deleteObject(snapshot.id)
+    );
